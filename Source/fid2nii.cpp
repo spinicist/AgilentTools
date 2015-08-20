@@ -101,7 +101,15 @@ void reconMP2RAGE(Agilent::FID &fid) {
         vector<complex<float>> block = fid.readBlock(z);
 
         int i = 0;
-        for (int y = 0; y < ny; y++) {
+        for (int y = 0; y < ny/2; y++) {
+            for (int x = 0; x < nx; x++) {
+                k[{x, ny/2 - 1 - y, z, 0}] = block.at(i++);
+            }
+            for (int x = 0; x < nx; x++) {
+                k[{x, ny/2 - 1 - y, z, 1}] = block.at(i++);
+            }
+        }
+        for (int y = ny/2; y < ny; y++) {
             for (int x = 0; x < nx; x++) {
                 k[{x, y, z, 0}] = block.at(i++);
             }
@@ -109,7 +117,6 @@ void reconMP2RAGE(Agilent::FID &fid) {
                 k[{x, y, z, 1}] = block.at(i++);
             }
         }
-        cout << "i = " << i << endl;
     }
 
 
