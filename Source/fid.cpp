@@ -43,7 +43,7 @@ const string FID::print_info() const {
 	return ss.str();
 }
 
-complex<double> *FID::readBlock(const int i) {
+std::vector<complex<float>> FID::readBlock(const int i) {
     if ((i > -1) && (i < m_fid.nBlocks())) {
         return m_fid.readBlock(i);
     } else {
@@ -51,16 +51,15 @@ complex<double> *FID::readBlock(const int i) {
     }
 }
 
-complex<double> *FID::readAllBlocks() {
-    complex<double> *all = new complex<double>[m_fid.nComplexPerBlock() * m_fid.nBlocks()];
+std::vector<complex<float>> FID::readAllBlocks() {
+    std::vector<complex<float>> all(m_fid.nComplexPerBlock() * m_fid.nBlocks());
 
     int blockOffset = 0;
     for (int b = 0; b < m_fid.nBlocks(); b++) {
-        const complex<double> *thisBlock = readBlock(b);
+        std::vector<complex<float>> thisBlock = readBlock(b);
         for (int k = 0; k < m_fid.nComplexPerBlock(); k++)
             all[blockOffset + k] = thisBlock[k];
         blockOffset += m_fid.nComplexPerBlock();
-        delete[] thisBlock;
     }
     return all;
 }

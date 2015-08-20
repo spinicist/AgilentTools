@@ -86,7 +86,7 @@ FIDFile::FIDType FIDFile::dataType() const {
 		return Int16Type;
 }
 
-complex<double> *FIDFile::readBlock(int index) {
+std::vector<complex<float>> FIDFile::readBlock(int index) {
     m_file.seekg(sizeof(FileHeader) + index * m_bytesPerBlock);
 	BlockHeader hdr;
 	double scale;
@@ -98,7 +98,7 @@ complex<double> *FIDFile::readBlock(int index) {
 		if (scale == 0)
 			scale = 1;
 	}
-	complex<double> *block = new complex<double>[nComplexPerBlock()];
+    std::vector<complex<float>> block (nComplexPerBlock());
 	// _bytesPerBlock includes the 28 byte block header
     int numBytes = m_bytesPerTrace * m_numTraces;
 	char *bytes = new char[numBytes];
@@ -143,7 +143,7 @@ const string FIDFile::print_header() const {
        << "Number of bytes per trace: " << m_bytesPerTrace << endl
        << "Number of bytes per block: " << m_bytesPerBlock << endl
        << "Status bits: " << m_status << " Version/ID bits: " << m_version_id << endl
-       << "Number of block headers per block: " << m_numBlockHeaders << endl;
+       << "Number of block headers per block: " << m_numBlockHeaders;
 	return ss.str();
 }
 

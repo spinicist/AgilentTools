@@ -13,6 +13,7 @@
 #include <fstream>
 #include <bitset>
 #include <complex>
+#include <vector>
 
 #include "util.h"
 
@@ -185,7 +186,7 @@ class FIDFile {
 		const int nComplexPerBlock() const; //!< The number of complex points per block (nPoints / 2)
 		FIDType dataType() const; //!< The sample data type
 		
-        complex<double> *readBlock(int block);
+        std::vector<complex<float> > readBlock(int block);
 		
 		const string print_header() const;
 };

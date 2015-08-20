@@ -34,8 +34,8 @@ class FID {
 		//~FID();
 		
 		const string print_info() const;
-        complex<double> *readBlock(const int i);
-        complex<double> *readAllBlocks();
+        std::vector<complex<float>> readBlock(const int i);
+        std::vector<complex<float>> readAllBlocks();
         const ProcPar &procpar() const;
 };
 
