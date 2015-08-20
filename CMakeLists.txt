@@ -12,27 +12,25 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 
 include_directories(Source)
 
-add_library(aglient Source/fid.cpp Source/fidFile.cpp
+add_library(agilent Source/fid.cpp Source/fidFile.cpp
                     Source/fdf.cpp Source/fdfFile.cpp
                     Source/procpar.cpp Source/util.cpp )
 add_library(nifti   Source/niiNifti.cpp Source/niiHeader.cpp
                     Source/niiInternal.cpp Source/niiExtension.cpp
                     Source/niiZipFile.cpp
                     Source/niiInternal-inl.h Source/niiNifti-inl.h
-                    Source/niiEnum.h )
+                    Source/niiEnum.h Source/niiExtensionCodes.h )
 
 set(PROGRAMS procparse fdf2nii fid2nii )
 
 foreach(PROGRAM ${PROGRAMS})
-	add_executable(${PROGRAM} Source/${PROGRAM}.cpp)
-	target_link_libraries(${PROGRAM} agilent nifti )
+    add_executable(${PROGRAM} Source/${PROGRAM}.cpp)
+    target_link_libraries(${PROGRAM} agilent nifti z )
 endforeach(PROGRAM)
 
 
 set(SCRIPTS_DIR Scripts)
-set(TOOLS fdf2nii.py)
-foreach(TOOL ${TOOLS})
-	configure_file(Source/${TOOL} ${TOOL} COPYONLY)
-endforeach(TOOL)
+set(PY_TOOLS Source/fdf2nii.py)
 
 install(TARGETS ${PROGRAMS} RUNTIME DESTINATION bin)
+install(FILES ${PY_TOOLS} PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE DESTINATION bin)
