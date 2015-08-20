@@ -20,6 +20,7 @@ add_library(nifti   Source/niiNifti.cpp Source/niiHeader.cpp
                     Source/niiZipFile.cpp
                     Source/niiInternal-inl.h Source/niiNifti-inl.h
                     Source/niiEnum.h Source/niiExtensionCodes.h )
+add_custom_target(templates SOURCES Source/MultiArray.h Source/MultiArray-inl.h )
 
 set(PROGRAMS procparse fdf2nii fid2nii )
 
