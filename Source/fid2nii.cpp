@@ -20,16 +20,19 @@ using namespace Eigen;
 
 int main(int argc, const char * argv[])
 {
+    if (argc != 2) {
+        cout << "No filename specified" << endl;
+        return EXIT_FAILURE;
+    }
+
 	string path(argv[1]);
 	
     Agilent::FID thisFid(path);
-	cout << thisFid.print_info() << endl;
-	complex<double> *kSpace = thisFid.readKSpace();
-	
-	cout << thisFid.nDim0() << " " << thisFid.nDim1() << " " << thisFid.nDim2() << endl;
+    cout << thisFid.print_info() << endl;
+    complex<double> *kSpace = thisFid.readAllBlocks();
 	
 	// FFT First & Second Dimension
-	for (int z = 0; z < thisFid.nDim2(); z++) {
+    /*for (int z = 0; z < thisFid.nDim2(); z++) {
 		int stride = thisFid.nDim0() * thisFid.nDim1();
 		
 		Map<Matrix<complex<double>, Dynamic, Dynamic>> slice(kSpace + z*stride, thisFid.nDim0(), thisFid.nDim1());
@@ -44,10 +47,10 @@ int main(int argc, const char * argv[])
 			fft.inv(fft_col, slice.col(j));
 			slice.col(j) = fft_col;
 		}
-	}
+    }*/
 	
 	// FFT Third Dimension
-	for (int x = 0; x < thisFid.nDim0(); x++) {
+    /*for (int x = 0; x < thisFid.nDim0(); x++) {
 		Map<Matrix<complex<double>, Dynamic, Dynamic>, Unaligned, Stride<Dynamic, Dynamic>>
 			slice(kSpace + x, thisFid.nDim1(), thisFid.nDim2(),
 			      Stride<Dynamic, Dynamic>(thisFid.nDim0() * thisFid.nDim1(), thisFid.nDim0()));
@@ -57,7 +60,7 @@ int main(int argc, const char * argv[])
 			fft.inv(fft_row, slice.row(k));
 			slice.row(k) = fft_row;
 		}
-	}
+    }*/
 	
 
     /*Nifti::Header outHdr(input.dims(), outVoxDims.cast<float>(), Nifti::DataType::FLOAT32);

@@ -11,20 +11,27 @@
 namespace Agilent {
 
 FID::FID(const string &path) {
+    if (path.length() == 0) {
+        throw(runtime_error(string(__PRETTY_FUNCTION__) + "\nEmpty path specified"));
+    }
 	m_bundlePath = path;
 	// Remove any trailing directory delimiters
 	if (m_bundlePath.back() == '/')
-		m_bundlePath.resize(path.size() - 1);
+        m_bundlePath.resize(m_bundlePath.size() - 1);
 	std::string ext = m_bundlePath.substr(m_bundlePath.find_last_of(".") + 1);
 	if (ext != "fid")
 		throw(runtime_error("Invalid extension for FID Bundle: " + m_bundlePath));
-	m_fid.open(m_bundlePath + "/fid");
-	ifstream fpp(m_bundlePath + "/procpar");
+    const string fidPath = m_bundlePath + "/fid";
+    const string ppPath = m_bundlePath + "/procpar";
+    ifstream fpp(ppPath);
+    if (!fpp)
+        throw(runtime_error("Could not open " + ppPath));
 	fpp >> m_procpar;
-	if (!fpp)
-		throw(runtime_error("Failed to read procpar within FID Bundle: " + m_bundlePath));
+    if (!fpp.eof())
+        throw(runtime_error("Failed to read entirety of " + ppPath));
 	if (!m_procpar.contains("seqcon") || !m_procpar.contains("apptype"))
-		throw(runtime_error("No apptype or seqcon found in FID Bundle: " + m_bundlePath));
+        throw(runtime_error("No apptype or seqcon found in " + ppPath));
+    m_fid.open(fidPath); // This will throw on error
 }
 
 const string FID::print_info() const {
@@ -36,31 +43,28 @@ const string FID::print_info() const {
 	return ss.str();
 }
 
-complex<double> *FID::readKSpace() {
-	complex<double> *kSpace = new complex<double>[m_fid.nComplexPerBlock() * m_fid.nBlocks()];
-	
-	int blockOffset = 0;
-	for (int b = 0; b < m_fid.nBlocks(); b++) {
-		const complex<double> *thisBlock = m_fid.readBlock(b);
-		for (int k = 0; k < m_fid.nComplexPerBlock(); k++)
-			kSpace[blockOffset + k] = thisBlock[k];
-		blockOffset += m_fid.nComplexPerBlock();
-		delete[] thisBlock;
-	}
-	return kSpace;
+complex<double> *FID::readBlock(const int i) {
+    if ((i > -1) && (i < m_fid.nBlocks())) {
+        return m_fid.readBlock(i);
+    } else {
+        throw(runtime_error(string(__PRETTY_FUNCTION__) + "\nInvalid block number " + to_string(i)));
+    }
 }
 
-const int FID::nVolumes() const { return 1; }
-const int FID::nDim0() const { return static_cast<int>(m_procpar.realValue("np") / 2); }
-const int FID::nDim1() const { return static_cast<int>(m_procpar.realValue("nv")); }
-const int FID::nDim2() const {
-	string appType = m_procpar.stringValue("apptype");
-	if (appType == "im2D")
-		return static_cast<int>(m_procpar.realValue("ns"));
-	else if (appType == "im3D")
-		return static_cast<int>(m_procpar.realValue("nv2"));
-	else
-		throw(runtime_error("Unknown application type: " + appType));
+complex<double> *FID::readAllBlocks() {
+    complex<double> *all = new complex<double>[m_fid.nComplexPerBlock() * m_fid.nBlocks()];
+
+    int blockOffset = 0;
+    for (int b = 0; b < m_fid.nBlocks(); b++) {
+        const complex<double> *thisBlock = readBlock(b);
+        for (int k = 0; k < m_fid.nComplexPerBlock(); k++)
+            all[blockOffset + k] = thisBlock[k];
+        blockOffset += m_fid.nComplexPerBlock();
+        delete[] thisBlock;
+    }
+    return all;
 }
 
-} // End namespace Nrecon
+const ProcPar &FID::procpar() const { return m_procpar; }
+
+} // End namespace Agilents

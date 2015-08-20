@@ -34,12 +34,9 @@ class FID {
 		//~FID();
 		
 		const string print_info() const;
-		complex<double> *readKSpace();
-		
-		const int nVolumes() const;
-		const int nDim0() const;    //!< First data size (usually read-out)
-		const int nDim1() const;    //!< Second data size (usually phase-encode)
-		const int nDim2() const;    //!< Third data size (usually phase-encode 2 or slices)
+        complex<double> *readBlock(const int i);
+        complex<double> *readAllBlocks();
+        const ProcPar &procpar() const;
 };
 
 } // End namespace Nrecon
