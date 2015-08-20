@@ -86,7 +86,7 @@ FIDFile::FIDType FIDFile::dataType() const {
 		return Int16Type;
 }
 
-const complex<double> *FIDFile::readBlock(int index) {
+complex<double> *FIDFile::readBlock(int index) {
     m_file.seekg(sizeof(FileHeader) + index * m_bytesPerBlock);
 	BlockHeader hdr;
 	double scale;

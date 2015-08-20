@@ -185,7 +185,7 @@ class FIDFile {
 		const int nComplexPerBlock() const; //!< The number of complex points per block (nPoints / 2)
 		FIDType dataType() const; //!< The sample data type
 		
-		const complex<double> *readBlock(int block);
+        complex<double> *readBlock(int block);
 		
 		const string print_header() const;
 };
