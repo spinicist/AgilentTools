@@ -62,7 +62,7 @@ int main(int argc, const char * argv[])
         int e_offset = 0;
         for (int e = 0; e < ne; e++) {
             cout << "Processing echo " << e << endl;
-            MultiArray<complex<float>, 3> kspace({nx, ny, nz}, block, {ne,ne*nx,ne*nx*ny}, e_offset);
+            MultiArray<complex<float>, 3> kspace({nx, ny, nz}, block, {1,ne*nx,ne*nx*ny}, e_offset);
 
             // FFTs (with fftshift equivalent
             FFT<float> fft;
@@ -98,7 +98,7 @@ int main(int argc, const char * argv[])
             cout << "Writing volume" << endl;
             output.writeVolumes(kspace.begin(), kspace.end(), vol, 1);
             vol++;
-            e_offset++;
+            e_offset += nx;
         }
     }
     output.close();
