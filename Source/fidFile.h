@@ -156,11 +156,11 @@ class FIDFile {
 		static void SwapBlockHeader(BlockHeader *hdr);
 		
 		//! Actual member variables
-		ifstream _file;
-		int _numBlocks, _numTraces, _numPoints, _numBlockHeaders,
-		    _bytesPerPoint, _bytesPerTrace, _bytesPerBlock;
-		bitset<16> _status, _version_id;
-		bool _swap;
+        ifstream m_file;
+        int m_numBlocks, m_numTraces, m_numPoints, m_numBlockHeaders,
+            m_bytesPerPoint, m_bytesPerTrace, m_bytesPerBlock;
+        bitset<16> m_status, m_version_id;
+        bool m_swap;
 		
 	public:
 		enum FIDType {
