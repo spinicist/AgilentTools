@@ -13,7 +13,7 @@
 #include "unsupported/Eigen/fft"
 
 #include "fid.h"
-#include "Nifti.h"
+#include "niiNifti.h"
 
 using namespace std;
 using namespace Eigen;
@@ -22,7 +22,7 @@ int main(int argc, const char * argv[])
 {
 	string path(argv[1]);
 	
-	Recon::FID thisFid(path);
+    Agilent::FID thisFid(path);
 	cout << thisFid.print_info() << endl;
 	complex<double> *kSpace = thisFid.readKSpace();
 	
@@ -59,16 +59,19 @@ int main(int argc, const char * argv[])
 		}
 	}
 	
-	Nifti output;
+
+    /*Nifti::Header outHdr(input.dims(), outVoxDims.cast<float>(), Nifti::DataType::FLOAT32);
+    outHdr.setTransform(outTransform.cast<float>());
+    outHdr.setDim(4, nOutImages);
 	output.setDim(1, thisFid.nDim0());
 	output.setDim(2, thisFid.nDim1());
 	output.setDim(3, thisFid.nDim2());
 	output.setDim(4, thisFid.nVolumes());
 	output.setDatatype(NIFTI_TYPE_FLOAT32);
-	output.open("output.nii.gz", Nifti::Mode::Write);
+    Nifti::File output(outHdr, "output.nii.gz");
 	output.writeAllVolumes(kSpace);
 	output.close();
-	
+    */
     return 0;
 }
 

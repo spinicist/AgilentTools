@@ -6,7 +6,7 @@
 //  Copyright (c) 2013 Tobias Wood. All rights reserved.
 //
 
-#include "Nifti/ZipFile.h"
+#include "niiZipFile.h"
 
 using namespace std;
 

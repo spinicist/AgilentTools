@@ -1,5 +1,5 @@
-#include "Header.h"
-#include "Internal.h"
+#include "niiHeader.h"
+#include "niiInternal.h"
 #include "nifti1.h"
 #include "nifti2.h"
 

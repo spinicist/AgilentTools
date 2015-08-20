@@ -12,7 +12,7 @@
 #include <exception>
 #include <stdexcept>
 
-#include "Nifti/Enum.h"
+#include "niiEnum.h"
 
 namespace Nifti {
 
@@ -28,7 +28,7 @@ void SwapAnalyzeHeader(nifti_analyze75 *h);
 
 inline float FixFloat(const float f); //!< Converts invalid floats to 0 to ensure a marginally sane header
 
-#include "Nifti/Internal-inl.h"
+#include "niiInternal-inl.h"
 
 int CodeForIntent(const Intent i);
 Intent IntentForCode(const int c);

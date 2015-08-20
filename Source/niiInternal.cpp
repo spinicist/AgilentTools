@@ -6,7 +6,7 @@
 //  Copyright (c) 2013 Tobias Wood. All rights reserved.
 //
 
-#include "Internal.h"
+#include "niiInternal.h"
 
 using namespace std;
 

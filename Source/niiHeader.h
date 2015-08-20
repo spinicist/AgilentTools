@@ -14,7 +14,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "Nifti/Enum.h"
+#include "niiEnum.h"
 
 namespace Nifti {
 

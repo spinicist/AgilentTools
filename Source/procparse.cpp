@@ -12,8 +12,8 @@
 #include <vector>
 #include <getopt.h>
 
-#include "Nifti/Nifti.h"
-#include "Nifti/ExtensionCodes.h"
+#include "niiNifti.h"
+#include "niiExtensionCodes.h"
 #include "procpar.h"
 
 using namespace std;

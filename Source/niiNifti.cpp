@@ -1,5 +1,5 @@
-#include "Nifti/Nifti.h"
-#include "Nifti/Internal.h"
+#include "niiNifti.h"
+#include "niiInternal.h"
 
 using namespace std;
 using namespace Eigen;

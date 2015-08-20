@@ -14,7 +14,7 @@
 #include "Eigen/Geometry"
 
 #include "fdf.h"
-#include "Nifti/Nifti.h"
+#include "niiNifti.h"
 
 using namespace std;
 using namespace Eigen;

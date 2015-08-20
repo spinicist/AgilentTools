@@ -6,8 +6,8 @@
 //  Copyright (c) 2013 Tobias Wood. All rights reserved.
 //
 
-#include "Nifti/Nifti.h"
-#include "Nifti/ExtensionCodes.h"
+#include "niiNifti.h"
+#include "niiExtensionCodes.h"
 
 using namespace std;
 

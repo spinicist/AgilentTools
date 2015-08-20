@@ -20,11 +20,11 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "Enum.h"
-#include "Header.h"
-#include "ZipFile.h"
-#include "Extension.h"
-#include "ExtensionCodes.h"
+#include "niiEnum.h"
+#include "niiHeader.h"
+#include "niiZipFile.h"
+#include "niiExtension.h"
+#include "niiExtensionCodes.h"
 
 namespace Nifti {
 class File {
@@ -97,7 +97,7 @@ class File {
 		void clearExtensions();
 };
 
-#include "Nifti-inl.h"
+#include "niiNifti-inl.h"
 
 } // End namespace Nifti
 
