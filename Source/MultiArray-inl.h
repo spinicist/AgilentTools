@@ -55,7 +55,7 @@ MultiArray<Tp, rank>::MultiArray(const Eigen::Array<size_t, rank - 1, 1> &inDims
 }
 
 template<typename Tp, size_t rank>
-MultiArray<Tp, rank>::MultiArray(const Index &dims, const PtrTp &ptr, const Index &strides, const size_t offset) :
+MultiArray<Tp, rank>::MultiArray(const Index &dims, PtrTp ptr, const Index &strides, const size_t offset) :
 	m_dims{dims},
 	m_strides{strides},
 	m_offset{offset},

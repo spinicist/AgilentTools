@@ -23,8 +23,6 @@
 #include "Eigen/Core"
 #include "Eigen/Geometry"
 
-namespace QUIT {
-
 template<typename Tp, size_t rank>
 class MultiArray {
 	public:
@@ -80,7 +78,7 @@ class MultiArray {
 	public:
 		MultiArray();
 		MultiArray(const Index &dims);
-		MultiArray(const Index &dims, const PtrTp &ptr, const Index &strides = Index::Zero(), const size_t offset = 0);
+        MultiArray(const Index &dims, PtrTp ptr, const Index &strides = Index::Zero(), const size_t offset = 0);
 		MultiArray(const SmallIndex &dims, const size_t finalDim);
 
 		const Index &dims() const;
@@ -111,7 +109,5 @@ class MultiArray {
 
 // Template definitions
 #include "MultiArray-inl.h"
-
-} // End namespace QUIT
 
 #endif //MULTIARRAY_H
