@@ -19,6 +19,48 @@
 using namespace std;
 using namespace Eigen;
 
+void fft_and_shift_X(MultiArray<complex<float>, 3> &a) {
+    FFT<float> fft;
+    int nx = a.dims()[0];
+    for (int z = 0; z < a.dims()[2]; z++) {
+        for (int y = 0; y < a.dims()[1]; y++) {
+            VectorXcf fft_in = a.slice<1>({0,y,z},{nx,0,0}).asArray();
+            VectorXcf fft_out(nx);
+            fft.inv(fft_out, fft_in);
+            a.slice<1>({0,y,z},{nx/2,0,0}).asArray() = fft_out.tail(nx/2);
+            a.slice<1>({nx/2,y,z},{nx/2,0,0}).asArray() = fft_out.head(nx/2);
+        }
+    }
+}
+
+void fft_and_shift_Y(MultiArray<complex<float>, 3> &a) {
+    FFT<float> fft;
+    int ny = a.dims()[1];
+    for (int z = 0; z < a.dims()[2]; z++) {
+        for (int x = 0; x < a.dims()[0]; x++) {
+            VectorXcf fft_in = a.slice<1>({x,0,z},{0,ny,0}).asArray();
+            VectorXcf fft_out(ny);
+            fft.inv(fft_out, fft_in);
+            a.slice<1>({x,0,z},{0,ny/2,0}).asArray() = fft_out.tail(ny/2);
+            a.slice<1>({x,ny/2,z},{0,ny/2,0}).asArray() = fft_out.head(ny/2);
+        }
+    }
+}
+
+void fft_and_shift_Z(MultiArray<complex<float>, 3> &a) {
+    FFT<float> fft;
+    int nz = a.dims()[2];
+    for (int x = 0; x < a.dims()[0]; x++) {
+        for (int y = 0; y < a.dims()[1]; y++) {
+            VectorXcf fft_in = a.slice<1>({x,y,0},{0,0,nz}).asArray();
+            VectorXcf fft_out(nz);
+            fft.inv(fft_out, fft_in);
+            a.slice<1>({x,y,0},{0,0,nz/2}).asArray() = fft_out.tail(nz/2);
+            a.slice<1>({x,y,nz/2},{0,0,nz/2}).asArray() = fft_out.head(nz/2);
+        }
+    }
+}
+
 void reconMGE(Agilent::FID &fid);
 void reconMGE(Agilent::FID &fid) {
     int nx = fid.procpar().realValue("np") / 2;
@@ -43,37 +85,9 @@ void reconMGE(Agilent::FID &fid) {
             cout << "Processing echo " << e << endl;
             MultiArray<complex<float>, 3> kspace({nx, ny, nz}, block, {1,ne*nx,ne*nx*ny}, e_offset);
 
-            // FFTs (with fftshift equivalent
-            FFT<float> fft;
-            for (int z = 0; z < nz; z++) {
-                for (int y = 0; y < ny; y++) {
-                    VectorXcf fft_in = kspace.slice<1>({0,y,z},{nx,0,0}).asArray();
-                    VectorXcf fft_out(nx);
-                    fft.inv(fft_out, fft_in);
-                    kspace.slice<1>({0,y,z},{nx/2,0,0}).asArray() = fft_out.tail(nx/2);
-                    kspace.slice<1>({nx/2,y,z},{nx/2,0,0}).asArray() = fft_out.head(nx/2);
-                }
-            }
-            for (int z = 0; z < nz; z++) {
-                for (int x = 0; x < nx; x++) {
-                    VectorXcf fft_in = kspace.slice<1>({x,0,z},{0,-1,0}).asArray();
-                    VectorXcf fft_out(ny);
-                    fft.inv(fft_out, fft_in);
-                    kspace.slice<1>({x,0,z},{0,ny/2,0}).asArray() = fft_out.tail(ny/2);
-                    kspace.slice<1>({x,ny/2,z},{0,ny/2,0}).asArray() = fft_out.head(ny/2);
-                }
-            }
-
-            // FFT Third Dimension
-            for (int x = 0; x < nx; x++) {
-                for (int y = 0; y < ny; y++) {
-                    VectorXcf fft_in = kspace.slice<1>({x,y,0},{0,0,-1}).asArray();
-                    VectorXcf fft_out(nz);
-                    fft.inv(fft_out, fft_in);
-                    kspace.slice<1>({x,y,0},{0,0,nz/2}).asArray() = fft_out.tail(nz/2);
-                    kspace.slice<1>({x,y,nz/2},{0,0,nz/2}).asArray() = fft_out.head(nz/2);
-                }
-            }
+            fft_and_shift_X(kspace);
+            fft_and_shift_Y(kspace);
+            fft_and_shift_Z(kspace);
             cout << "Writing volume" << endl;
             output.writeVolumes(kspace.begin(), kspace.end(), vol, 1);
             vol++;
@@ -115,39 +129,11 @@ void reconMP2RAGE(Agilent::FID &fid) {
         }
     }
 
-
-    // FFTs (with fftshift equivalent
-    FFT<float> fft;
     for (int v = 0; v < 2; v++) {
-        for (int z = 0; z < nz; z++) {
-            for (int y = 0; y < ny; y++) {
-                VectorXcf fft_in = k.slice<1>({0,y,z,v},{nx,0,0,0}).asArray();
-                VectorXcf fft_out(nx);
-                fft.inv(fft_out, fft_in);
-                k.slice<1>({0,y,z,v},{nx/2,0,0,0}).asArray() = fft_out.tail(nx/2);
-                k.slice<1>({nx/2,y,z,v},{nx/2,0,0,0}).asArray() = fft_out.head(nx/2);
-            }
-        }
-        for (int z = 0; z < nz; z++) {
-            for (int x = 0; x < nx; x++) {
-                VectorXcf fft_in = k.slice<1>({x,0,z,v},{0,ny,0,0}).asArray();
-                VectorXcf fft_out(ny);
-                fft.inv(fft_out, fft_in);
-                k.slice<1>({x,0,z,v},{0,ny/2,0,0}).asArray() = fft_out.tail(ny/2);
-                k.slice<1>({x,ny/2,z,v},{0,ny/2,0,0}).asArray() = fft_out.head(ny/2);
-            }
-        }
-
-        // FFT Third Dimension
-        for (int x = 0; x < nx; x++) {
-            for (int y = 0; y < ny; y++) {
-                VectorXcf fft_in = k.slice<1>({x,y,0,v},{0,0,nz,0}).asArray();
-                VectorXcf fft_out(nz);
-                fft.inv(fft_out, fft_in);
-                k.slice<1>({x,y,0,v},{0,0,nz/2,0}).asArray() = fft_out.tail(nz/2);
-                k.slice<1>({x,y,nz/2,v},{0,0,nz/2,0}).asArray() = fft_out.head(nz/2);
-            }
-        }
+        MultiArray<complex<float>, 3> vol = k.slice<3>({0,0,0,v},{-1,-1,-1,0});
+        fft_and_shift_X(vol);
+        fft_and_shift_Y(vol);
+        fft_and_shift_Z(vol);
     }
     cout << "Writing volume" << endl;
     output.writeVolumes(k.begin(), k.end(), 0, 2);
