@@ -92,6 +92,9 @@ void reconMP2RAGE(Agilent::FID &fid) {
     float lx = fid.procpar().realValue("lro") / nx;
     float ly = fid.procpar().realValue("lpe") / ny;
     float lz = fid.procpar().realValue("lpe2") / nz;
+
+    ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
+
     Nifti::Header outHdr(nx, ny, nz, 2, lx, ly, lz, 1, Nifti::DataType::COMPLEX128);
     Nifti::File output(outHdr, "output.nii");
     MultiArray<complex<float>, 4> k({nx, ny, nz, 2});
@@ -101,20 +104,13 @@ void reconMP2RAGE(Agilent::FID &fid) {
         vector<complex<float>> block = fid.readBlock(z);
 
         int i = 0;
-        for (int y = 0; y < ny/2; y++) {
+        for (int y = 0; y < ny; y++) {
+            int yind = ny / 2 + pelist[y];
             for (int x = 0; x < nx; x++) {
-                k[{x, ny/2 - 1 - y, z, 0}] = block.at(i++);
+                k[{x, yind, z, 0}] = block.at(i++);
             }
             for (int x = 0; x < nx; x++) {
-                k[{x, ny/2 - 1 - y, z, 1}] = block.at(i++);
-            }
-        }
-        for (int y = ny/2; y < ny; y++) {
-            for (int x = 0; x < nx; x++) {
-                k[{x, y, z, 0}] = block.at(i++);
-            }
-            for (int x = 0; x < nx; x++) {
-                k[{x, y, z, 1}] = block.at(i++);
+                k[{x, yind, z, 1}] = block.at(i++);
             }
         }
     }
