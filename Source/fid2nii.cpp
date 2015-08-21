@@ -25,9 +25,11 @@ void fft_and_shift_X(MultiArray<complex<float>, 3> &a) {
     int nx = a.dims()[0];
     for (int z = 0; z < a.dims()[2]; z++) {
         for (int y = 0; y < a.dims()[1]; y++) {
-            VectorXcf fft_in = a.slice<1>({0,y,z},{nx,0,0}).asArray();
+            VectorXcf fft_in(nx);
+            fft_in.tail(nx/2) = a.slice<1>({0,y,z},{nx/2,0,0}).asArray();
+            fft_in.head(nx/2) = a.slice<1>({nx/2,y,z},{nx/2,0,0}).asArray();
             VectorXcf fft_out(nx);
-            fft.inv(fft_out, fft_in);
+            fft.fwd(fft_out, fft_in);
             a.slice<1>({0,y,z},{nx/2,0,0}).asArray() = fft_out.tail(nx/2);
             a.slice<1>({nx/2,y,z},{nx/2,0,0}).asArray() = fft_out.head(nx/2);
         }
@@ -39,9 +41,11 @@ void fft_and_shift_Y(MultiArray<complex<float>, 3> &a) {
     int ny = a.dims()[1];
     for (int z = 0; z < a.dims()[2]; z++) {
         for (int x = 0; x < a.dims()[0]; x++) {
-            VectorXcf fft_in = a.slice<1>({x,0,z},{0,ny,0}).asArray();
+            VectorXcf fft_in(ny);
+            fft_in.tail(ny/2) = a.slice<1>({x,0,z},{0,ny/2,0}).asArray();
+            fft_in.head(ny/2) = a.slice<1>({x,ny/2,z},{0,ny/2,0}).asArray();
             VectorXcf fft_out(ny);
-            fft.inv(fft_out, fft_in);
+            fft.fwd(fft_out, fft_in);
             a.slice<1>({x,0,z},{0,ny/2,0}).asArray() = fft_out.tail(ny/2);
             a.slice<1>({x,ny/2,z},{0,ny/2,0}).asArray() = fft_out.head(ny/2);
         }
@@ -53,17 +57,19 @@ void fft_and_shift_Z(MultiArray<complex<float>, 3> &a) {
     int nz = a.dims()[2];
     for (int x = 0; x < a.dims()[0]; x++) {
         for (int y = 0; y < a.dims()[1]; y++) {
-            VectorXcf fft_in = a.slice<1>({x,y,0},{0,0,nz}).asArray();
+            VectorXcf fft_in(nz);
+            fft_in.tail(nz/2) = a.slice<1>({x,y,0},{0,0,nz/2}).asArray();
+            fft_in.head(nz/2) = a.slice<1>({x,y,nz/2},{0,0,nz/2}).asArray();
             VectorXcf fft_out(nz);
-            fft.inv(fft_out, fft_in);
+            fft.fwd(fft_out, fft_in);
             a.slice<1>({x,y,0},{0,0,nz/2}).asArray() = fft_out.tail(nz/2);
             a.slice<1>({x,y,nz/2},{0,0,nz/2}).asArray() = fft_out.head(nz/2);
         }
     }
 }
 
-void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace);
-void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
+void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace, const Nifti::DataType dtype);
+void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace, const Nifti::DataType dtype) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
@@ -74,7 +80,7 @@ void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
     float ly = fid.procpar().realValue("lpe") / ny;
     float lz = fid.procpar().realValue("lpe2") / nz;
 
-    Nifti::Header outHdr(nx, ny, nz, narray * ne, lx, ly, lz, 1, Nifti::DataType::COMPLEX128);
+    Nifti::Header outHdr(nx, ny, nz, narray * ne, lx, ly, lz, 1, dtype);
     Nifti::File output(outHdr, outpath);
     int vol = 0;
     for (int a = 0; a < narray; a++) {
@@ -100,8 +106,8 @@ void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
     output.close();
 }
 
-void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace);
-void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
+void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace, const Nifti::DataType dtype);
+void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace, const Nifti::DataType dtype) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
@@ -112,7 +118,7 @@ void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
 
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
 
-    Nifti::Header outHdr(nx, ny, nz, 2, lx, ly, lz, 1, Nifti::DataType::COMPLEX128);
+    Nifti::Header outHdr(nx, ny, nz, 2, lx, ly, lz, 1, dtype);
     Nifti::File output(outHdr, outpath);
     MultiArray<complex<float>, 4> k({nx, ny, nz, 2});
 
@@ -121,13 +127,12 @@ void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
         vector<complex<float>> block = fid.readBlock(z);
 
         int i = 0;
-        for (int y = 0; y < ny; y++) {
-            int yind = ny / 2 + pelist[y];
-            for (int x = 0; x < nx; x++) {
-                k[{x, y, z, 0}] = block.at(i++);
-            }
-            for (int x = 0; x < nx; x++) {
-                k[{x, y, z, 1}] = block.at(i++);
+        for (int v = 0; v < 2; v++) {
+            for (int y = 0; y < ny; y++) {
+                int yind = ny / 2 - 1 - pelist[y];
+                for (int x = 0; x < nx; x++) {
+                    k[{x, yind, z, v}] = block.at(i++);
+                }
             }
         }
     }
@@ -149,14 +154,14 @@ int main(int argc, char **argv) {
     int indexptr = 0, c;
     string outPrefix = "";
     bool zip = false, kspace = false;
-
+    Nifti::DataType dtype = Nifti::DataType::COMPLEX64;
     static struct option long_options[] = {
         {"out", required_argument, 0, 'o'},
         {"zip", no_argument, 0, 'z'},
         {"kspace", required_argument, 0, 'k'},
         {0, 0, 0, 0}
     };
-    static const char *short_options = "o:zk";
+    static const char *short_options = "o:zkm";
 
     while ((c = getopt_long(argc, argv, short_options, long_options, &indexptr)) != -1) {
         switch (c) {
@@ -164,6 +169,7 @@ int main(int argc, char **argv) {
         case 'o': outPrefix = string(optarg); break;
         case 'z': zip = true; break;
         case 'k': kspace = true; break;
+        case 'm': dtype = Nifti::DataType::FLOAT32; break;
         default: cout << "Unknown option " << optarg << endl;
         }
     }
@@ -198,10 +204,10 @@ int main(int argc, char **argv) {
 
     if (seqfil.substr(0, 5) == "mge3d") {
         cout << "MGE Recon" << endl;
-        reconMGE(fid, outPath, kspace);
+        reconMGE(fid, outPath, kspace, dtype);
     } else if (seqfil.substr(0, 7) == "mp2rage") {
         cout << "mp2rage recon" << endl;
-        reconMP2RAGE(fid, outPath, kspace);
+        reconMP2RAGE(fid, outPath, kspace, dtype);
     }
 
     return 0;
