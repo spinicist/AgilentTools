@@ -61,8 +61,8 @@ void fft_and_shift_Z(MultiArray<complex<float>, 3> &a) {
     }
 }
 
-void reconMGE(Agilent::FID &fid);
-void reconMGE(Agilent::FID &fid) {
+void reconMGE(Agilent::FID &fid, const string &outpath);
+void reconMGE(Agilent::FID &fid, const string &outpath) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
@@ -74,7 +74,7 @@ void reconMGE(Agilent::FID &fid) {
     float lz = fid.procpar().realValue("lpe2") / nz;
 
     Nifti::Header outHdr(nx, ny, nz, narray * ne, lx, ly, lz, 1, Nifti::DataType::COMPLEX128);
-    Nifti::File output(outHdr, "output.nii");
+    Nifti::File output(outHdr, outpath);
     int vol = 0;
     for (int a = 0; a < narray; a++) {
         cout << "Reading block " << a << endl;
@@ -97,8 +97,8 @@ void reconMGE(Agilent::FID &fid) {
     output.close();
 }
 
-void reconMP2RAGE(Agilent::FID &fid);
-void reconMP2RAGE(Agilent::FID &fid) {
+void reconMP2RAGE(Agilent::FID &fid, const string &outpath);
+void reconMP2RAGE(Agilent::FID &fid, const string &outpath) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
@@ -110,7 +110,7 @@ void reconMP2RAGE(Agilent::FID &fid) {
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
 
     Nifti::Header outHdr(nx, ny, nz, 2, lx, ly, lz, 1, Nifti::DataType::COMPLEX128);
-    Nifti::File output(outHdr, "output.nii");
+    Nifti::File output(outHdr, outpath);
     MultiArray<complex<float>, 4> k({nx, ny, nz, 2});
 
     for (int z = 0; z < nz; z++) {
@@ -147,9 +147,15 @@ int main(int argc, const char * argv[])
         return EXIT_FAILURE;
     }
 
-	string path(argv[1]);
-	
-    Agilent::FID fid(path);
+    string inPath(argv[1]);
+    size_t fileSep = inPath.find_last_of("/") + 1;
+    size_t fileExt = inPath.find_last_of(".");
+    if ((fileExt == string::npos) || (inPath.substr(fileExt) != ".fid")) {
+        cerr << inPath << " is not a valid .fid directory" << endl;
+    }
+    string outPath = inPath.substr(fileSep, fileExt - fileSep) + ".nii";
+
+    Agilent::FID fid(inPath);
     cout << fid.print_info() << endl;
 
     string apptype = fid.procpar().stringValue("apptype");
@@ -164,25 +170,12 @@ int main(int argc, const char * argv[])
 
     if (seqfil.substr(0, 5) == "mge3d") {
         cout << "MGE Recon" << endl;
-        reconMGE(fid);
+        reconMGE(fid, outPath);
     } else if (seqfil.substr(0, 7) == "mp2rage") {
         cout << "mp2rage recon" << endl;
-        reconMP2RAGE(fid);
+        reconMP2RAGE(fid, outPath);
     }
 
-
-    /*
-    outHdr.setTransform(outTransform.cast<float>());
-    outHdr.setDim(4, nOutImages);
-    output.setDim(1, fid.nDim0());
-    output.setDim(2, fid.nDim1());
-    output.setDim(3, fid.nDim2());
-    output.setDim(4, fid.nVolumes());
-	output.setDatatype(NIFTI_TYPE_FLOAT32);
-    Nifti::File output(outHdr, "output.nii.gz");
-	output.writeAllVolumes(kSpace);
-	output.close();
-    */
     return 0;
 }
 
