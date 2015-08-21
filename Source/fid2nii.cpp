@@ -8,6 +8,7 @@
 
 #include <string>
 #include <iostream>
+#include <getopt.h>
 
 #include "Eigen/Dense"
 #include "unsupported/Eigen/fft"
@@ -61,8 +62,8 @@ void fft_and_shift_Z(MultiArray<complex<float>, 3> &a) {
     }
 }
 
-void reconMGE(Agilent::FID &fid, const string &outpath);
-void reconMGE(Agilent::FID &fid, const string &outpath) {
+void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace);
+void reconMGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
@@ -83,13 +84,15 @@ void reconMGE(Agilent::FID &fid, const string &outpath) {
         int e_offset = 0;
         for (int e = 0; e < ne; e++) {
             cout << "Processing echo " << e << endl;
-            MultiArray<complex<float>, 3> kspace({nx, ny, nz}, block, {1,ne*nx,ne*nx*ny}, e_offset);
+            MultiArray<complex<float>, 3> k({nx, ny, nz}, block, {1,ne*nx,ne*nx*ny}, e_offset);
 
-            fft_and_shift_X(kspace);
-            fft_and_shift_Y(kspace);
-            fft_and_shift_Z(kspace);
+            if (!kspace) {
+                fft_and_shift_X(k);
+                fft_and_shift_Y(k);
+                fft_and_shift_Z(k);
+            }
             cout << "Writing volume" << endl;
-            output.writeVolumes(kspace.begin(), kspace.end(), vol, 1);
+            output.writeVolumes(k.begin(), k.end(), vol, 1);
             vol++;
             e_offset += nx;
         }
@@ -97,8 +100,8 @@ void reconMGE(Agilent::FID &fid, const string &outpath) {
     output.close();
 }
 
-void reconMP2RAGE(Agilent::FID &fid, const string &outpath);
-void reconMP2RAGE(Agilent::FID &fid, const string &outpath) {
+void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace);
+void reconMP2RAGE(Agilent::FID &fid, const string &outpath, const bool kspace) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
@@ -121,39 +124,64 @@ void reconMP2RAGE(Agilent::FID &fid, const string &outpath) {
         for (int y = 0; y < ny; y++) {
             int yind = ny / 2 + pelist[y];
             for (int x = 0; x < nx; x++) {
-                k[{x, yind, z, 0}] = block.at(i++);
+                k[{x, y, z, 0}] = block.at(i++);
             }
             for (int x = 0; x < nx; x++) {
-                k[{x, yind, z, 1}] = block.at(i++);
+                k[{x, y, z, 1}] = block.at(i++);
             }
         }
     }
 
-    for (int v = 0; v < 2; v++) {
-        MultiArray<complex<float>, 3> vol = k.slice<3>({0,0,0,v},{-1,-1,-1,0});
-        fft_and_shift_X(vol);
-        fft_and_shift_Y(vol);
-        fft_and_shift_Z(vol);
+    if (!kspace) {
+        for (int v = 0; v < 2; v++) {
+            MultiArray<complex<float>, 3> vol = k.slice<3>({0,0,0,v},{-1,-1,-1,0});
+            fft_and_shift_X(vol);
+            fft_and_shift_Y(vol);
+            fft_and_shift_Z(vol);
+        }
     }
     cout << "Writing volume" << endl;
     output.writeVolumes(k.begin(), k.end(), 0, 2);
     output.close();
 }
 
-int main(int argc, const char * argv[])
-{
-    if (argc != 2) {
-        cout << "No filename specified" << endl;
+int main(int argc, char **argv) {
+    int indexptr = 0, c;
+    string outPrefix = "";
+    bool zip = false, kspace = false;
+
+    static struct option long_options[] = {
+        {"out", required_argument, 0, 'o'},
+        {"zip", no_argument, 0, 'z'},
+        {"kspace", required_argument, 0, 'k'},
+        {0, 0, 0, 0}
+    };
+    static const char *short_options = "o:zk";
+
+    while ((c = getopt_long(argc, argv, short_options, long_options, &indexptr)) != -1) {
+        switch (c) {
+        case 0: break; // It was an option that just sets a flag.
+        case 'o': outPrefix = string(optarg); break;
+        case 'z': zip = true; break;
+        case 'k': kspace = true; break;
+        default: cout << "Unknown option " << optarg << endl;
+        }
+    }
+
+    if ((argc - optind) <= 0) {
+        cout << "No .fids specified" << endl;
         return EXIT_FAILURE;
     }
 
-    string inPath(argv[1]);
+    string inPath(argv[optind]);
     size_t fileSep = inPath.find_last_of("/") + 1;
     size_t fileExt = inPath.find_last_of(".");
     if ((fileExt == string::npos) || (inPath.substr(fileExt) != ".fid")) {
         cerr << inPath << " is not a valid .fid directory" << endl;
     }
-    string outPath = inPath.substr(fileSep, fileExt - fileSep) + ".nii";
+    string outPath = outPrefix + inPath.substr(fileSep, fileExt - fileSep) + ".nii";
+    if (zip)
+        outPath = outPath + ".gz";
 
     Agilent::FID fid(inPath);
     cout << fid.print_info() << endl;
@@ -170,10 +198,10 @@ int main(int argc, const char * argv[])
 
     if (seqfil.substr(0, 5) == "mge3d") {
         cout << "MGE Recon" << endl;
-        reconMGE(fid, outPath);
+        reconMGE(fid, outPath, kspace);
     } else if (seqfil.substr(0, 7) == "mp2rage") {
         cout << "mp2rage recon" << endl;
-        reconMP2RAGE(fid, outPath);
+        reconMP2RAGE(fid, outPath, kspace);
     }
 
     return 0;
