@@ -438,4 +438,60 @@ const vector<string> &ProcPar::stringValues(const string &name) const {
 		return p->second.stringValues();
 }
 
+Affine3f ProcPar::calcTransform() const {
+    int slabs = static_cast<size_t>(parameter("pss").nvals()); // ns will be 1 for standard looping
+    int echoes = static_cast<size_t>(realValue("ne"));
+    Array3i dim;
+    dim[0] = realValue("np") / 2;
+    dim[1] = realValue("nv");
+    if (stringValue("apptype") == "im2D") {
+        dim[2] = realValue("ns");
+    } else {
+        dim[2] = realValue("nv2");
+    }
+
+    // Now we have the joy of calculating a correct orientation field
+    // Get "Euler" angles. These describe how to get to the user frame
+    // from the magnet frame.
+    double psi = realValue("psi"), phi = realValue("phi"),
+           tht = realValue("theta");
+
+    double sinphi = sin(phi*M_PI/180.), cosphi = cos(phi*M_PI/180.);
+    double sintht = sin(tht*M_PI/180.), costht = cos(tht*M_PI/180.);
+    double sinpsi = sin(psi*M_PI/180.), cospsi = cos(psi*M_PI/180.);
+
+    // Now for the vox dimensions and offsets in the user frame
+    // The offset for the RO axis appears to be negative versus the PE/PE2 axis
+    // Verified in a mouse dataset 13/11/21
+    Array3f voxdim, offset;
+    voxdim[0] = realValue("lro")/dim[0];
+    offset(0) = -realValue("pro") - (realValue("lro") - voxdim[0])/2.;
+    voxdim[1] = realValue("lpe")/dim[1];
+    offset(1) = realValue("ppe") - (realValue("lpe") - voxdim[1])/2.;
+    if (stringValue("apptype") == "im2D") {
+        voxdim[2] = realValue("thk")/10. + realValue("gap"); // thk seems to be in mm already
+        offset[2] = realValue("pss", 0); // Find the most negative slice center
+        for (size_t i = 1; i < slabs; i++) {
+            if (realValue("pss", i) < offset[2])
+                offset[2] = realValue("pss", i);
+        }
+    } else {
+        voxdim[2] = realValue("lpe2")/dim[2];
+        offset[2] = realValue("ppe2") - (realValue("lpe2") - voxdim[2])/2.;
+    }
+    // Now build the transform matrix - the 10 is to convert from cm to mm
+    voxdim *= 10.;
+    offset *= 10.;
+    Affine3f S; S = Scaling(voxdim[0], voxdim[1], voxdim[2]);
+    Affine3f T; T = Translation3f(offset[0], offset[1], offset[2]);
+    // From Michael Gyngell
+    Matrix3f Rd;
+    Rd << -cospsi*sinphi + sinpsi*costht*cosphi, -cospsi*cosphi - sinpsi*costht*sinphi, sinpsi*sintht,
+           sinpsi*sinphi + cospsi*costht*cosphi,  sinpsi*cosphi - cospsi*costht*sinphi, cospsi*sintht,
+          -sintht*cosphi, sintht*sinphi, costht;
+    Affine3f R(Rd);
+    Affine3f final = (R*T*S);
+    return final;
+}
+
 }; // End namespace Agilent

@@ -204,7 +204,6 @@ int main(int argc, char **argv) {
         vols = reconMP2RAGE(fid);
     }
 
-    cout << "Dims " << vols.dims().transpose() << endl;
     if (!kspace) {
         for (int v = 0; v < vols.dims()[3]; v++) {
             cout << "FFTing vol " << v << endl;
@@ -216,13 +215,14 @@ int main(int argc, char **argv) {
             fft_shift_3(vol);
         }
     }
-    cout << "Writing volume" << endl;
 
+    cout << "Writing file: " << outPath << endl;
     float lx = fid.procpar().realValue("lro") / vols.dims()[0];
     float ly = fid.procpar().realValue("lpe") / vols.dims()[1];
     float lz = fid.procpar().realValue("lpe2") / vols.dims()[2];
     ArrayXf voxdims(4); voxdims << lx, ly, lz, 1;
     Nifti::Header outHdr(vols.dims(), voxdims, dtype);
+    outHdr.setTransform(fid.procpar().calcTransform());
     Nifti::File output(outHdr, outPath);
     output.writeVolumes(vols.begin(), vols.end(), 0, vols.dims()[3]);
     output.close();

@@ -20,6 +20,7 @@
 #include <exception>
 
 #include "Eigen/Core"
+#include "Eigen/Geometry"
 
 namespace Agilent {
 	
@@ -102,6 +103,7 @@ namespace Agilent {
 			const Eigen::ArrayXd &realValues(const std::string &name) const;
 			const std::string &stringValue(const std::string &name, const size_t index = 0) const;
 			const std::vector<std::string> &stringValues(const std::string &name) const;
+            Eigen::Affine3f calcTransform() const;
 	};
 } // End namespace Agilent
 
