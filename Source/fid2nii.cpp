@@ -8,6 +8,7 @@
 
 #include <string>
 #include <iostream>
+#include <algorithm>
 #include <getopt.h>
 
 #include "Eigen/Dense"
@@ -20,50 +21,65 @@
 using namespace std;
 using namespace Eigen;
 
-void fft_and_shift_X(MultiArray<complex<float>, 3> &a) {
+void fft_shift_3(MultiArray<complex<float>, 3> & a) {
+    int x2 = a.dims()[0] / 2;
+    int y2 = a.dims()[1] / 2;
+    int z2 = a.dims()[2] / 2;
+
+    MultiArray<complex<float>, 3>::Index size_half{x2,y2,z2};
+    MultiArray<complex<float>, 3>::Index start_1{0,0,0};
+    MultiArray<complex<float>, 3>::Index start_2{x2,y2,z2};
+
+    for (int i = 0; i < 4; i++) {
+        auto local_1 = start_1;
+        auto local_2 = start_2;
+        if (i < 3) {
+            local_1[i] = a.dims()[i] / 2;
+            local_2[i] = 0;
+        }
+
+        auto octant_1 = a.slice<3>({local_1}, {size_half});
+        auto octant_2 = a.slice<3>({local_2}, {size_half});
+
+        std::swap_ranges(octant_1.begin(), octant_1.end(), octant_2.begin());
+    }
+}
+
+void fft_X(MultiArray<complex<float>, 3> &a) {
     FFT<float> fft;
     int nx = a.dims()[0];
     for (int z = 0; z < a.dims()[2]; z++) {
         for (int y = 0; y < a.dims()[1]; y++) {
-            VectorXcf fft_in(nx);
-            fft_in.tail(nx/2) = a.slice<1>({0,y,z},{nx/2,0,0}).asArray();
-            fft_in.head(nx/2) = a.slice<1>({nx/2,y,z},{nx/2,0,0}).asArray();
+            VectorXcf fft_in = a.slice<1>({0,y,z},{nx,0,0}).asArray();
             VectorXcf fft_out(nx);
             fft.fwd(fft_out, fft_in);
-            a.slice<1>({0,y,z},{nx/2,0,0}).asArray() = fft_out.tail(nx/2);
-            a.slice<1>({nx/2,y,z},{nx/2,0,0}).asArray() = fft_out.head(nx/2);
+            a.slice<1>({0,y,z},{nx,0,0}).asArray() = fft_out;
         }
     }
 }
 
-void fft_and_shift_Y(MultiArray<complex<float>, 3> &a) {
+void fft_Y(MultiArray<complex<float>, 3> &a) {
     FFT<float> fft;
     int ny = a.dims()[1];
     for (int z = 0; z < a.dims()[2]; z++) {
         for (int x = 0; x < a.dims()[0]; x++) {
-            VectorXcf fft_in(ny);
-            fft_in.tail(ny/2) = a.slice<1>({x,0,z},{0,ny/2,0}).asArray();
-            fft_in.head(ny/2) = a.slice<1>({x,ny/2,z},{0,ny/2,0}).asArray();
+            VectorXcf fft_in = a.slice<1>({x,0,z},{0,ny,0}).asArray();
             VectorXcf fft_out(ny);
             fft.fwd(fft_out, fft_in);
-            a.slice<1>({x,0,z},{0,ny/2,0}).asArray() = fft_out.tail(ny/2);
-            a.slice<1>({x,ny/2,z},{0,ny/2,0}).asArray() = fft_out.head(ny/2);
+            a.slice<1>({x,0,z},{0,ny,0}).asArray() = fft_out;
         }
     }
 }
 
-void fft_and_shift_Z(MultiArray<complex<float>, 3> &a) {
+void fft_Z(MultiArray<complex<float>, 3> &a) {
     FFT<float> fft;
     int nz = a.dims()[2];
     for (int x = 0; x < a.dims()[0]; x++) {
         for (int y = 0; y < a.dims()[1]; y++) {
-            VectorXcf fft_in(nz);
-            fft_in.tail(nz/2) = a.slice<1>({x,y,0},{0,0,nz/2}).asArray();
-            fft_in.head(nz/2) = a.slice<1>({x,y,nz/2},{0,0,nz/2}).asArray();
+            VectorXcf fft_in = a.slice<1>({x,y,0},{0,0,nz}).asArray();
             VectorXcf fft_out(nz);
             fft.fwd(fft_out, fft_in);
-            a.slice<1>({x,y,0},{0,0,nz/2}).asArray() = fft_out.tail(nz/2);
-            a.slice<1>({x,y,nz/2},{0,0,nz/2}).asArray() = fft_out.head(nz/2);
+            a.slice<1>({x,y,0},{0,0,nz}).asArray() = fft_out;
         }
     }
 }
@@ -193,9 +209,11 @@ int main(int argc, char **argv) {
         for (int v = 0; v < vols.dims()[3]; v++) {
             cout << "FFTing vol " << v << endl;
             MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
-            fft_and_shift_X(vol);
-            fft_and_shift_Y(vol);
-            fft_and_shift_Z(vol);
+            fft_shift_3(vol);
+            fft_X(vol);
+            fft_Y(vol);
+            fft_Z(vol);
+            fft_shift_3(vol);
         }
     }
     cout << "Writing volume" << endl;
