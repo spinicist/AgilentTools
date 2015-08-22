@@ -134,7 +134,7 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
             for (int y = 0; y < ny; y++) {
                 int yind = ny / 2 + pelist[y];
                 for (int x = 0; x < nx; x++) {
-                    k[{x, yind, nz - 1 - z, v}] = block.at(i++);
+                    k[{x, yind, z, v}] = block.at(i++);
                 }
             }
         }
