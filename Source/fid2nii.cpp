@@ -21,6 +21,29 @@
 using namespace std;
 using namespace Eigen;
 
+void phase_correct_3(MultiArray<complex<float>, 3> & a, Agilent::FID &fid) {
+    float ppe = fid.procpar().realValue("ppe");
+    float ppe2 = fid.procpar().realValue("ppe2");
+
+    float lpe = fid.procpar().realValue("lpe");
+    float lpe2 = fid.procpar().realValue("lpe2");
+
+    float ph = -2*M_PI*ppe/lpe;
+    float ph2 = -2*M_PI*ppe2/lpe2;
+
+    for (int z = 0; z < a.dims()[2]; z++) {
+        const complex<float> fz = polar(1.f, ph2*z);
+        for (int y = 0; y < a.dims()[1]; y++) {
+            const complex<float> fy = polar(1.f, ph*y);
+            for (int x = 0; x < a.dims()[0]; x++) {
+                complex<float> val = a[{x,y,z}];
+                val = val * fy * fz;
+                a[{x,y,z}] = val;
+            }
+        }
+    }
+}
+
 void fft_shift_3(MultiArray<complex<float>, 3> & a) {
     int x2 = a.dims()[0] / 2;
     int y2 = a.dims()[1] / 2;
@@ -208,6 +231,7 @@ int main(int argc, char **argv) {
         for (int v = 0; v < vols.dims()[3]; v++) {
             cout << "FFTing vol " << v << endl;
             MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
+            phase_correct_3(vol, fid);
             fft_shift_3(vol);
             fft_X(vol);
             fft_Y(vol);
