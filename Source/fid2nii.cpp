@@ -21,6 +21,8 @@
 using namespace std;
 using namespace Eigen;
 
+bool verbose = false;
+
 void phase_correct_3(MultiArray<complex<float>, 3> & a, Agilent::FID &fid) {
     float ppe = fid.procpar().realValue("ppe");
     float ppe2 = fid.procpar().realValue("ppe2");
@@ -117,13 +119,14 @@ MultiArray<complex<float>, 4> reconMGE(Agilent::FID &fid) {
 
     MultiArray<complex<float>, 4> vols({nx, ny, nz, narray*ne});
     int vol = 0;
+    if (verbose) cout << "Reading MGE fid" << endl;
     for (int a = 0; a < narray; a++) {
-        cout << "Reading block " << a << endl;
+        if (verbose) cout << "Reading block " << a << endl;
         shared_ptr<vector<complex<float>>> block = make_shared<vector<complex<float>>>();
         *block = fid.readBlock(a);
         int e_offset = 0;
         for (int e = 0; e < ne; e++) {
-            cout << "Reading echo " << e << endl;
+            if (verbose)  cout << "Reading echo " << e << endl;
             MultiArray<complex<float>, 3> this_vol({nx, ny, nz}, block, {1,ne*nx,ne*nx*ny}, e_offset);
             MultiArray<complex<float>, 3> slice = vols.slice<3>({0,0,0,vol},{-1,-1,-1,0});
 
@@ -148,8 +151,9 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
     MultiArray<complex<float>, 4> k({nx, ny, nz, 2});
 
+    if (verbose) cout << "Reading MP2RAGE fid" << endl;
     for (int z = 0; z < nz; z++) {
-        cout << "Reading block " << z << endl;
+        if (verbose) cout << "Reading block " << z << endl;
         vector<complex<float>> block = fid.readBlock(z);
 
         int i = 0;
@@ -175,9 +179,10 @@ int main(int argc, char **argv) {
         {"out", required_argument, 0, 'o'},
         {"zip", no_argument, 0, 'z'},
         {"kspace", required_argument, 0, 'k'},
+        {"verbose", no_argument, 0, 'v'},
         {0, 0, 0, 0}
     };
-    static const char *short_options = "o:zkm";
+    static const char *short_options = "o:zkmv";
 
     while ((c = getopt_long(argc, argv, short_options, long_options, &indexptr)) != -1) {
         switch (c) {
@@ -186,6 +191,7 @@ int main(int argc, char **argv) {
         case 'z': zip = true; break;
         case 'k': kspace = true; break;
         case 'm': dtype = Nifti::DataType::FLOAT32; break;
+        case 'v': verbose = true; break;
         default: cout << "Unknown option " << optarg << endl;
         }
     }
@@ -206,13 +212,13 @@ int main(int argc, char **argv) {
         outPath = outPath + ".gz";
 
     Agilent::FID fid(inPath);
-    cout << fid.print_info() << endl;
+    if (verbose) cout << fid.print_info() << endl;
 
     string apptype = fid.procpar().stringValue("apptype");
     string seqfil  = fid.procpar().stringValue("seqfil");
 
-    cout << "apptype = " << apptype << endl;
-    cout << "seqfil  = " << seqfil << endl;
+    if (verbose) cout << "apptype = " << apptype << endl;
+    if (verbose) cout << "seqfil  = " << seqfil << endl;
 
     if (apptype != "im3D") {
         throw(runtime_error("apptype " + apptype + " not supported."));
@@ -220,16 +226,14 @@ int main(int argc, char **argv) {
 
     MultiArray<complex<float>, 4> vols;
     if (seqfil.substr(0, 5) == "mge3d") {
-        cout << "MGE Recon" << endl;
         vols = reconMGE(fid);
     } else if (seqfil.substr(0, 7) == "mp2rage") {
-        cout << "mp2rage recon" << endl;
         vols = reconMP2RAGE(fid);
     }
 
     if (!kspace) {
         for (int v = 0; v < vols.dims()[3]; v++) {
-            cout << "FFTing vol " << v << endl;
+            if (verbose) cout << "FFTing vol " << v << endl;
             MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
             phase_correct_3(vol, fid);
             fft_shift_3(vol);
@@ -240,7 +244,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    cout << "Writing file: " << outPath << endl;
+    if (verbose) cout << "Writing file: " << outPath << endl;
     float lx = fid.procpar().realValue("lro") / vols.dims()[0];
     float ly = fid.procpar().realValue("lpe") / vols.dims()[1];
     float lz = fid.procpar().realValue("lpe2") / vols.dims()[2];
