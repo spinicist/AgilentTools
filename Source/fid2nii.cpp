@@ -147,11 +147,14 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
-    int nti = fid.procpar().realValue("nf") / ny;
+    int nti = 3;
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
     MultiArray<complex<float>, 4> k({nx, ny, nz, nti});
 
-    if (verbose) cout << "Reading MP2RAGE fid" << endl;
+    if (verbose) {
+        cout << "Reading mpXrage fid" << endl;
+        cout << "Expecting " << nti << " inversion times" << endl;
+    }
     for (int z = 0; z < nz; z++) {
         if (verbose) cout << "Reading block " << z << endl;
         vector<complex<float>> block = fid.readBlock(z);
@@ -201,59 +204,68 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    string inPath(argv[optind]);
-    size_t fileSep = inPath.find_last_of("/") + 1;
-    size_t fileExt = inPath.find_last_of(".");
-    if ((fileExt == string::npos) || (inPath.substr(fileExt) != ".fid")) {
-        cerr << inPath << " is not a valid .fid directory" << endl;
-    }
-    string outPath = outPrefix + inPath.substr(fileSep, fileExt - fileSep) + ".nii";
-    if (zip)
-        outPath = outPath + ".gz";
-
-    Agilent::FID fid(inPath);
-    if (verbose) cout << fid.print_info() << endl;
-
-    string apptype = fid.procpar().stringValue("apptype");
-    string seqfil  = fid.procpar().stringValue("seqfil");
-
-    if (verbose) cout << "apptype = " << apptype << endl;
-    if (verbose) cout << "seqfil  = " << seqfil << endl;
-
-    if (apptype != "im3D") {
-        throw(runtime_error("apptype " + apptype + " not supported."));
-    }
-
-    MultiArray<complex<float>, 4> vols;
-    if (seqfil.substr(0, 5) == "mge3d") {
-        vols = reconMGE(fid);
-    } else if (seqfil.substr(0, 7) == "mp3rage") {
-        vols = reconMP2RAGE(fid);
-    }
-
-    if (!kspace) {
-        for (int v = 0; v < vols.dims()[3]; v++) {
-            if (verbose) cout << "FFTing vol " << v << endl;
-            MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
-            phase_correct_3(vol, fid);
-            fft_shift_3(vol);
-            fft_X(vol);
-            fft_Y(vol);
-            fft_Z(vol);
-            fft_shift_3(vol);
+    while (optind < argc) {
+        string inPath(argv[optind++]);
+        size_t fileSep = inPath.find_last_of("/") + 1;
+        size_t fileExt = inPath.find_last_of(".");
+        if ((fileExt == string::npos) || (inPath.substr(fileExt) != ".fid")) {
+            cerr << inPath << " is not a valid .fid directory" << endl;
         }
-    }
+        string outPath = outPrefix + inPath.substr(fileSep, fileExt - fileSep) + ".nii";
+        if (zip)
+            outPath = outPath + ".gz";
 
-    if (verbose) cout << "Writing file: " << outPath << endl;
-    float lx = fid.procpar().realValue("lro") / vols.dims()[0];
-    float ly = fid.procpar().realValue("lpe") / vols.dims()[1];
-    float lz = fid.procpar().realValue("lpe2") / vols.dims()[2];
-    ArrayXf voxdims(4); voxdims << lx, ly, lz, 1;
-    Nifti::Header outHdr(vols.dims(), voxdims, dtype);
-    outHdr.setTransform(fid.procpar().calcTransform());
-    Nifti::File output(outHdr, outPath);
-    output.writeVolumes(vols.begin(), vols.end(), 0, vols.dims()[3]);
-    output.close();
+        Agilent::FID fid(inPath);
+
+
+        string apptype = fid.procpar().stringValue("apptype");
+        string seqfil  = fid.procpar().stringValue("seqfil");
+
+        if (apptype != "im3D") {
+            cerr << "apptype " << apptype << " not supported, skipping." << endl;
+            continue;
+        }
+
+        if (verbose) {
+            cout << fid.print_info() << endl;
+            cout << "apptype = " << apptype << endl;
+            cout << "seqfil  = " << seqfil << endl;
+        }
+
+        MultiArray<complex<float>, 4> vols;
+        if (seqfil.substr(0, 5) == "mge3d") {
+            vols = reconMGE(fid);
+        } else if (seqfil.substr(0, 7) == "mp3rage") {
+            vols = reconMP2RAGE(fid);
+        } else {
+            cerr << "Recon for " << seqfil << " not implemented, skipping." << endl;
+            continue;
+        }
+
+        if (!kspace) {
+            for (int v = 0; v < vols.dims()[3]; v++) {
+                if (verbose) cout << "FFTing vol " << v << endl;
+                MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
+                phase_correct_3(vol, fid);
+                fft_shift_3(vol);
+                fft_X(vol);
+                fft_Y(vol);
+                fft_Z(vol);
+                fft_shift_3(vol);
+            }
+        }
+
+        if (verbose) cout << "Writing file: " << outPath << endl;
+        float lx = fid.procpar().realValue("lro") / vols.dims()[0];
+        float ly = fid.procpar().realValue("lpe") / vols.dims()[1];
+        float lz = fid.procpar().realValue("lpe2") / vols.dims()[2];
+        ArrayXf voxdims(4); voxdims << lx, ly, lz, 1;
+        Nifti::Header outHdr(vols.dims(), voxdims, dtype);
+        outHdr.setTransform(fid.procpar().calcTransform());
+        Nifti::File output(outHdr, outPath);
+        output.writeVolumes(vols.begin(), vols.end(), 0, vols.dims()[3]);
+        output.close();
+    }
     return 0;
 }
 
