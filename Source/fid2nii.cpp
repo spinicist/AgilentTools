@@ -147,9 +147,9 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
     int nx = fid.procpar().realValue("np") / 2;
     int ny = fid.procpar().realValue("nv");
     int nz = fid.procpar().realValue("nv2");
-
+    int nti = fid.procpar().realValue("nf") / ny;
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
-    MultiArray<complex<float>, 4> k({nx, ny, nz, 2});
+    MultiArray<complex<float>, 4> k({nx, ny, nz, nti});
 
     if (verbose) cout << "Reading MP2RAGE fid" << endl;
     for (int z = 0; z < nz; z++) {
@@ -157,7 +157,7 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
         vector<complex<float>> block = fid.readBlock(z);
 
         int i = 0;
-        for (int v = 0; v < 2; v++) {
+        for (int v = 0; v < nti; v++) {
             for (int y = 0; y < ny; y++) {
                 int yind = ny / 2 + pelist[y];
                 for (int x = 0; x < nx; x++) {
@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
     MultiArray<complex<float>, 4> vols;
     if (seqfil.substr(0, 5) == "mge3d") {
         vols = reconMGE(fid);
-    } else if (seqfil.substr(0, 7) == "mp2rage") {
+    } else if (seqfil.substr(0, 7) == "mp3rage") {
         vols = reconMP2RAGE(fid);
     }
 
