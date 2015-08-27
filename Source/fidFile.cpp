@@ -1,12 +1,11 @@
-//
-//  FIDFile.cpp
-//  Nrecon
-//
-//  Created by Tobias Wood on 21/11/2012.
-//  Copyright (c) 2012 Tobias Wood. All rights reserved.
-//
+/*
+ *  fidFile.cpp
+ *  Part of Agilent Tools
+ *
+ *  Copyright (c) 2015 Tobias Wood
+ */
 
-#include "FIDFile.h"
+#include "fidFile.h"
 
 namespace Agilent {
 

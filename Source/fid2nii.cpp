@@ -12,7 +12,7 @@
 #include <getopt.h>
 
 #include "Eigen/Dense"
-#include "unsupported/Eigen/fft"
+#include "unsupported/Eigen/FFT"
 
 #include "fid.h"
 #include "niiNifti.h"

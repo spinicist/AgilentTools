@@ -1,10 +1,10 @@
-//
-//  FID.h
-//  Nrecon
-//
-//  Created by Tobias Wood on 11/12/2012.
-//
-//
+/*
+ *  fid.h
+ *  Nrecon
+ *
+ *  Copyright Tobias Wood 2015
+ *
+ */
 
 #ifndef AGILENT_FID
 #define AGILENT_FID
@@ -17,7 +17,7 @@
 #include <exception>
 
 #include "util.h"
-#include "FIDFile.h"
+#include "fidFile.h"
 #include "procpar.h"
 
 using namespace std;
