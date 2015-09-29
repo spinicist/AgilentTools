@@ -176,16 +176,17 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
 int main(int argc, char **argv) {
     int indexptr = 0, c;
     string outPrefix = "";
-    bool zip = false, kspace = false;
+    bool zip = false, kspace = false, procpar = false;
     Nifti::DataType dtype = Nifti::DataType::COMPLEX64;
     static struct option long_options[] = {
         {"out", required_argument, 0, 'o'},
         {"zip", no_argument, 0, 'z'},
         {"kspace", required_argument, 0, 'k'},
+        {"procpar", no_argument, 0, 'p'},
         {"verbose", no_argument, 0, 'v'},
         {0, 0, 0, 0}
     };
-    static const char *short_options = "o:zkmv";
+    static const char *short_options = "o:zkmpv";
 
     while ((c = getopt_long(argc, argv, short_options, long_options, &indexptr)) != -1) {
         switch (c) {
@@ -194,8 +195,13 @@ int main(int argc, char **argv) {
         case 'z': zip = true; break;
         case 'k': kspace = true; break;
         case 'm': dtype = Nifti::DataType::FLOAT32; break;
+        case 'p': procpar = true; break;
         case 'v': verbose = true; break;
-        default: cout << "Unknown option " << optarg << endl;
+        case '?': // getopt will print an error message
+            return EXIT_FAILURE;
+        default:
+            cout << "Unhandled option " << string(1, c) << endl;
+            return EXIT_FAILURE;
         }
     }
 
@@ -260,9 +266,20 @@ int main(int argc, char **argv) {
         float ly = fid.procpar().realValue("lpe") / vols.dims()[1];
         float lz = fid.procpar().realValue("lpe2") / vols.dims()[2];
         ArrayXf voxdims(4); voxdims << lx, ly, lz, 1;
+        list<Nifti::Extension> exts;
+        if (procpar) {
+            if (verbose) cout << "Embedding procpar" << endl;
+            ifstream pp_file(inPath + "/procpar", ios::binary);
+            pp_file.seekg(ios::end);
+            size_t fileSize = pp_file.tellg();
+            pp_file.seekg(ios::beg);
+            vector<char> data; data.reserve(fileSize);
+            data.assign(istreambuf_iterator<char>(pp_file), istreambuf_iterator<char>());
+            exts.emplace_back(NIFTI_ECODE_COMMENT, data);
+        }
         Nifti::Header outHdr(vols.dims(), voxdims, dtype);
         outHdr.setTransform(fid.procpar().calcTransform());
-        Nifti::File output(outHdr, outPath);
+        Nifti::File output(outHdr, outPath, exts);
         output.writeVolumes(vols.begin(), vols.end(), 0, vols.dims()[3]);
         output.close();
     }
