@@ -144,10 +144,12 @@ MultiArray<complex<float>, 4> reconMGE(Agilent::FID &fid) {
 
 MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid);
 MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
-    int nx = fid.procpar().realValue("np") / 2;
-    int ny = fid.procpar().realValue("nv");
-    int nz = fid.procpar().realValue("nv2");
-    int nti = 3;
+    const int nx = fid.procpar().realValue("np") / 2;
+    const int ny = fid.procpar().realValue("nv");
+    const int nz = fid.procpar().realValue("nv2");
+    const int nseg = fid.procpar().realValue("nseg");
+    const int ny_per_seg = ny / nseg;
+    const int nti = 3;
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
     MultiArray<complex<float>, 4> k({nx, ny, nz, nti});
 
@@ -160,13 +162,17 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
         vector<complex<float>> block = fid.readBlock(z);
 
         int i = 0;
-        for (int v = 0; v < nti; v++) {
-            for (int y = 0; y < ny; y++) {
-                int yind = ny / 2 + pelist[y];
-                for (int x = 0; x < nx; x++) {
-                    k[{x, yind, z, v}] = block.at(i++);
+        int yseg = 0;
+        for (int s = 0; s < nseg; s++) {
+            for (int v = 0; v < nti; v++) {
+                for (int y = 0; y < (ny / nseg); y++) {
+                    int yind = ny / 2 + pelist[yseg + y];
+                    for (int x = 0; x < nx; x++) {
+                        k[{x, yind, z, v}] = block.at(i++);
+                    }
                 }
             }
+            yseg += ny_per_seg;
         }
     }
 
