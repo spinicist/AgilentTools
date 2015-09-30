@@ -109,6 +109,29 @@ void fft_Z(MultiArray<complex<float>, 3> &a) {
     }
 }
 
+void tukey3D(MultiArray<complex<float>, 3> &ks, const float a, const float q);
+void tukey3D(MultiArray<complex<float>, 3> &ks, const float a, const float q) {
+    // Don't build a filter, calculate on-line
+    const int nx = ks.dims()[0];
+    const int ny = ks.dims()[1];
+    const int nz = ks.dims()[2];
+    const int x_2 = nx / 2;
+    const int y_2 = ny / 2;
+    const int z_2 = nz / 2;
+
+    for (int z = 0; z < ks.dims()[2]; z++) {
+        for (int y = 0; y < ks.dims()[1]; y++) {
+            for (int x = 0; x < ks.dims()[0]; x++) {
+                float rad = sqrt(pow(static_cast<float>(x - x_2) / nx, 2) +
+                                 pow(static_cast<float>(y - y_2) / ny, 2) +
+                                 pow(static_cast<float>(z - z_2) / nz, 2));
+                float filter = (rad <= (1 - a)) ? 1 : 0.5*((1+q)+(1-q)*cos((M_PI*((1-a)-rad)/a)));
+                ks[{x,y,z}] *= filter;
+            }
+        }
+    }
+}
+
 MultiArray<complex<float>, 4> reconMGE(Agilent::FID &fid);
 MultiArray<complex<float>, 4> reconMGE(Agilent::FID &fid) {
     int nx = fid.procpar().realValue("np") / 2;
@@ -244,6 +267,9 @@ int main(int argc, char **argv) {
             cout << "seqfil  = " << seqfil << endl;
         }
 
+        /*
+         * Assemble k-Space
+         */
         MultiArray<complex<float>, 4> vols;
         if (seqfil.substr(0, 5) == "mge3d") {
             vols = reconMGE(fid);
@@ -254,6 +280,17 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        /*
+         * Filter
+         */
+        if (verbose) cout << "Applying filter" << endl;
+        for (int v = 0; v < vols.dims()[3]; v++) {
+            MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
+            tukey3D(vol,0.75,0.25);
+        }
+        /*
+         * FFT
+         */
         if (!kspace) {
             for (int v = 0; v < vols.dims()[3]; v++) {
                 if (verbose) cout << "FFTing vol " << v << endl;
