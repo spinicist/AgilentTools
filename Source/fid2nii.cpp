@@ -9,6 +9,7 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <exception>
 #include <getopt.h>
 
 #include "Eigen/Dense"
@@ -109,26 +110,60 @@ void fft_Z(MultiArray<complex<float>, 3> &a) {
     }
 }
 
-void tukey3D(MultiArray<complex<float>, 3> &ks, const float a, const float q);
-void tukey3D(MultiArray<complex<float>, 3> &ks, const float a, const float q) {
-    // Don't build a filter, calculate on-line
-    const int nx = ks.dims()[0];
-    const int ny = ks.dims()[1];
-    const int nz = ks.dims()[2];
+MultiArray<float, 3> Hanning3D(MultiArray<float, 3>::Index dims, const float a);
+MultiArray<float, 3> Hanning3D(MultiArray<float, 3>::Index dims, const float a) {
+    const int nx = dims[0];
+    const int ny = dims[1];
+    const int nz = dims[2];
     const int x_2 = nx / 2;
     const int y_2 = ny / 2;
     const int z_2 = nz / 2;
-
-    for (int z = 0; z < ks.dims()[2]; z++) {
-        for (int y = 0; y < ks.dims()[1]; y++) {
-            for (int x = 0; x < ks.dims()[0]; x++) {
-                float rad = sqrt(pow(static_cast<float>(x - x_2) / nx, 2) +
-                                 pow(static_cast<float>(y - y_2) / ny, 2) +
-                                 pow(static_cast<float>(z - z_2) / nz, 2));
-                float filter = (rad <= (1 - a)) ? 1 : 0.5*((1+q)+(1-q)*cos((M_PI*((1-a)-rad)/a)));
-                ks[{x,y,z}] *= filter;
+    const float r_m = sqrt(static_cast<float>(x_2*x_2 + y_2*y_2 + z_2*z_2));
+    MultiArray<float, 3> filter(dims);
+    for (int z = 0; z < nz; z++) {
+        for (int y = 0; y < ny; y++) {
+            for (int x = 0; x < nx; x++) {
+                float rad = sqrt(static_cast<float>((x - x_2)*(x - x_2) + (y - y_2)*(y - y_2) + (z - z_2)*(z - z_2))) / r_m;
+                filter[{x,y,z}] = (1 + a*cos(M_PI*rad)) / (1 + a);
             }
         }
+    }
+    return filter;
+}
+
+MultiArray<float, 3> Tukey3D(MultiArray<float, 3>::Index dims, const float a, const float q);
+MultiArray<float, 3> Tukey3D(MultiArray<float, 3>::Index dims, const float a, const float q) {
+    const int nx = dims[0];
+    const int ny = dims[1];
+    const int nz = dims[2];
+    const int x_2 = nx / 2;
+    const int y_2 = ny / 2;
+    const int z_2 = nz / 2;
+    const float r_m = sqrt(static_cast<float>(x_2*x_2 + y_2*y_2 + z_2*z_2));
+    MultiArray<float, 3> filter(dims);
+    for (int z = 0; z < nz; z++) {
+        for (int y = 0; y < ny; y++) {
+            for (int x = 0; x < nx; x++) {
+                float rad = sqrt(static_cast<float>((x - x_2)*(x - x_2) + (y - y_2)*(y - y_2) + (z - z_2)*(z - z_2))) / r_m;
+                filter[{x,y,z}] = (rad <= (1 - a)) ? 1 : 0.5*((1+q)+(1-q)*cos((M_PI/a)*(rad - 1 + a)));
+            }
+        }
+    }
+    return filter;
+}
+
+void ApplyFilter3D(MultiArray<complex<float>, 3> ks, MultiArray<float, 3> filter);
+void ApplyFilter3D(MultiArray<complex<float>, 3> ks, MultiArray<float, 3> filter) {
+    if ((ks.dims() != filter.dims()).any()) {
+        throw(runtime_error("K-space and filter dimensions do not match."));
+    }
+
+    auto k_it = ks.begin();
+    auto f_it = filter.begin();
+    while (k_it != ks.end()) {
+        *k_it = (*k_it) * (*f_it);
+        k_it++;
+        f_it++;
     }
 }
 
@@ -202,20 +237,27 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
     return k;
 }
 
+enum class Filters { None, Hanning, Tukey };
+
 int main(int argc, char **argv) {
     int indexptr = 0, c;
     string outPrefix = "";
     bool zip = false, kspace = false, procpar = false;
+    Filters filterType = Filters::None;
+    float f_a = 0, f_q = 0;
     Nifti::DataType dtype = Nifti::DataType::COMPLEX64;
     static struct option long_options[] = {
         {"out", required_argument, 0, 'o'},
         {"zip", no_argument, 0, 'z'},
         {"kspace", required_argument, 0, 'k'},
         {"procpar", no_argument, 0, 'p'},
+        {"filter", required_argument, 0, 'f'},
+        {"fa", required_argument, 0, 'a'},
+        {"fq", required_argument, 0, 'q'},
         {"verbose", no_argument, 0, 'v'},
         {0, 0, 0, 0}
     };
-    static const char *short_options = "o:zkmpv";
+    static const char *short_options = "o:zkmpf:v";
 
     while ((c = getopt_long(argc, argv, short_options, long_options, &indexptr)) != -1) {
         switch (c) {
@@ -224,6 +266,36 @@ int main(int argc, char **argv) {
         case 'z': zip = true; break;
         case 'k': kspace = true; break;
         case 'm': dtype = Nifti::DataType::FLOAT32; break;
+        case 'f':
+            switch (*optarg) {
+            case 'h':
+                filterType = Filters::Hanning;
+                f_a = 0.1;
+                break;
+            case 't':
+                filterType = Filters::Tukey;
+                f_a = 0.75;
+                f_q = 0.25;
+                break;
+            default:
+                cerr << "Unknown filter type: " << string(optarg, 1) << endl;
+                return EXIT_FAILURE;
+            }
+            break;
+        case 'a':
+            if (filterType == Filters::None) {
+                cerr << "No filter type specified, so f_a is invalid" << endl;
+                return EXIT_FAILURE;
+            }
+            f_a = atof(optarg);
+            break;
+        case 'q':
+            if (filterType != Filters::Tukey) {
+                cerr << "Filter type is not Tukey, f_q is invalid" << endl;
+                return EXIT_FAILURE;
+            }
+            f_q = atof(optarg);
+            break;
         case 'p': procpar = true; break;
         case 'v': verbose = true; break;
         case '?': // getopt will print an error message
@@ -281,12 +353,26 @@ int main(int argc, char **argv) {
         }
 
         /*
-         * Filter
+         * Build and apply filter
          */
-        if (verbose) cout << "Applying filter" << endl;
-        for (int v = 0; v < vols.dims()[3]; v++) {
-            MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
-            tukey3D(vol,0.75,0.25);
+        MultiArray<float, 3> filter;
+        switch (filterType) {
+        case Filters::None: break;
+        case Filters::Hanning:
+            if (verbose) cout << "Building Hanning filter" << endl;
+            filter = Hanning3D(vols.dims().head(3), f_a);
+            break;
+        case Filters::Tukey:
+            if (verbose) cout << "Building Tukey filter" << endl;
+            filter = Tukey3D(vols.dims().head(3), f_a, f_q);
+            break;
+        }
+        if (filterType != Filters::None) {
+            if (verbose) cout << "Applying filter" << endl;
+            for (int v = 0; v < vols.dims()[3]; v++) {
+                MultiArray<complex<float>, 3> vol = vols.slice<3>({0,0,0,v},{-1,-1,-1,0});
+                ApplyFilter3D(vol,filter);
+            }
         }
         /*
          * FFT
