@@ -391,10 +391,6 @@ int main(int argc, char **argv) {
         }
 
         if (verbose) cout << "Writing file: " << outPath << endl;
-        float lx = fid.procpar().realValue("lro") / vols.dims()[0];
-        float ly = fid.procpar().realValue("lpe") / vols.dims()[1];
-        float lz = fid.procpar().realValue("lpe2") / vols.dims()[2];
-        ArrayXf voxdims(4); voxdims << lx, ly, lz, 1;
         list<Nifti::Extension> exts;
         if (procpar) {
             if (verbose) cout << "Embedding procpar" << endl;
@@ -406,8 +402,10 @@ int main(int argc, char **argv) {
             data.assign(istreambuf_iterator<char>(pp_file), istreambuf_iterator<char>());
             exts.emplace_back(NIFTI_ECODE_COMMENT, data);
         }
+        Affine3f xform  = fid.procpar().calcTransform();
+        ArrayXf voxdims = (Affine3f(xform.rotation()).inverse() * xform).matrix().diagonal();
         Nifti::Header outHdr(vols.dims(), voxdims, dtype);
-        outHdr.setTransform(fid.procpar().calcTransform());
+        outHdr.setTransform(xform);
         Nifti::File output(outHdr, outPath, exts);
         output.writeVolumes(vols.begin(), vols.end(), 0, vols.dims()[3]);
         output.close();
