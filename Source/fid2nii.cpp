@@ -207,12 +207,12 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
     const int nz = fid.procpar().realValue("nv2");
     const int nseg = fid.procpar().realValue("nseg");
     const int ny_per_seg = ny / nseg;
-    const int nti = 3;
+    const int nti = (fid.procpar().stringValue("mp3rage_flag") == "y") ? 3 : 2;
     ArrayXi pelist = fid.procpar().realValues("pelist").cast<int>();
     MultiArray<complex<float>, 4> k({nx, ny, nz, nti});
 
     if (verbose) {
-        cout << "Reading mpXrage fid" << endl;
+        cout << "Reading mp3rage fid" << endl;
         cout << "Expecting " << nti << " inversion times" << endl;
     }
     for (int z = 0; z < nz; z++) {
