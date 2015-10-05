@@ -238,6 +238,37 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
 }
 
 enum class Filters { None, Hanning, Tukey };
+static struct option long_options[] = {
+    {"out", required_argument, 0, 'o'},
+    {"zip", no_argument, 0, 'z'},
+    {"kspace", required_argument, 0, 'k'},
+    {"procpar", no_argument, 0, 'p'},
+    {"filter", required_argument, 0, 'f'},
+    {"mag", no_argument, 0, 'm'},
+    {"fa", required_argument, 0, 'a'},
+    {"fq", required_argument, 0, 'q'},
+    {"verbose", no_argument, 0, 'v'},
+    {0, 0, 0, 0}
+};
+static const char *short_options = "o:zkmpf:v";
+const string usage {
+"fid2nii - A utility to reconstruct Agilent fid bundles in nifti format.\n\
+\n\
+Usage: fid2nii [opts] image1 image2 ... imageN\n\
+image1 to imageN are paths to the Agilent .fid folders\n\
+Options:\n\
+    --verbose, -v  : Print out extra info (e.g. after each volume is written).\n\
+    --out, -o      : Specify an output prefix.\n\
+    --zip, -z      : Create .nii.gz files\n\
+    --mag, -m      : Save magnitude images, not complex.\n\
+    --scale, -s N  : Multiply image dimensions by N (set to 10 for use with SPM).\n\
+    --procpar, -p  : Embed procpar in the nifti header.\n\
+    --kspace, -k   : Don't FFT, write out k-space instead.\n\
+    --filter, -f h : Use a Hanning filter.\n\
+                 t : Use a Tukey filter.\n\
+    --fa=X         : Specify the filter alpha parameter.\n\
+    --fq=X         : Specify the q parameter (Tukey only).\n"
+};
 
 int main(int argc, char **argv) {
     int indexptr = 0, c;
@@ -246,18 +277,7 @@ int main(int argc, char **argv) {
     Filters filterType = Filters::None;
     float f_a = 0, f_q = 0;
     Nifti::DataType dtype = Nifti::DataType::COMPLEX64;
-    static struct option long_options[] = {
-        {"out", required_argument, 0, 'o'},
-        {"zip", no_argument, 0, 'z'},
-        {"kspace", required_argument, 0, 'k'},
-        {"procpar", no_argument, 0, 'p'},
-        {"filter", required_argument, 0, 'f'},
-        {"fa", required_argument, 0, 'a'},
-        {"fq", required_argument, 0, 'q'},
-        {"verbose", no_argument, 0, 'v'},
-        {0, 0, 0, 0}
-    };
-    static const char *short_options = "o:zkmpf:v";
+    Affine3f scale; scale = Scaling(1.f);
 
     while ((c = getopt_long(argc, argv, short_options, long_options, &indexptr)) != -1) {
         switch (c) {
@@ -266,6 +286,7 @@ int main(int argc, char **argv) {
         case 'z': zip = true; break;
         case 'k': kspace = true; break;
         case 'm': dtype = Nifti::DataType::FLOAT32; break;
+        case 's': scale = Scaling(static_cast<float>(atof(optarg))); break;
         case 'f':
             switch (*optarg) {
             case 'h':
@@ -402,7 +423,7 @@ int main(int argc, char **argv) {
             data.assign(istreambuf_iterator<char>(pp_file), istreambuf_iterator<char>());
             exts.emplace_back(NIFTI_ECODE_COMMENT, data);
         }
-        Affine3f xform  = fid.procpar().calcTransform();
+        Affine3f xform  = scale * fid.procpar().calcTransform();
         ArrayXf voxdims = (Affine3f(xform.rotation()).inverse() * xform).matrix().diagonal();
         Nifti::Header outHdr(vols.dims(), voxdims, dtype);
         outHdr.setTransform(xform);
