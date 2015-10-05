@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 				throw(invalid_argument("Selected echo was above the maximum."));
 			}
 			auto outVoxDims = (input.voxdims() * scale).cast<float>();
-			Affine3d scaleXForm; scaleXForm = Scaling(scale, scale, scale);
+            Affine3d scaleXForm; scaleXForm = Scaling(scale);
 			Affine3d outTransform = (scaleXForm * input.transform());
 			if (corax) {
 				outTransform = AngleAxisd(M_PI, Vector3d::UnitZ()) * AngleAxisd(M_PI / 2., Vector3d::UnitX()) * outTransform;
