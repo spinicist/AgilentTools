@@ -250,7 +250,7 @@ static struct option long_options[] = {
     {"verbose", no_argument, 0, 'v'},
     {0, 0, 0, 0}
 };
-static const char *short_options = "o:zkmpf:v";
+static const char *short_options = "o:zs:kmpf:v";
 const string usage {
 "fid2nii - A utility to reconstruct Agilent fid bundles in nifti format.\n\
 \n\
@@ -267,7 +267,7 @@ Options:\n\
     --filter, -f h : Use a Hanning filter.\n\
                  t : Use a Tukey filter.\n\
     --fa=X         : Specify the filter alpha parameter.\n\
-    --fq=X         : Specify the q parameter (Tukey only).\n"
+    --fq=X         : Specify the q parameter (Tukey only)."
 };
 
 int main(int argc, char **argv) {
@@ -320,6 +320,7 @@ int main(int argc, char **argv) {
         case 'p': procpar = true; break;
         case 'v': verbose = true; break;
         case '?': // getopt will print an error message
+            cout << usage << endl;
             return EXIT_FAILURE;
         default:
             cout << "Unhandled option " << string(1, c) << endl;
@@ -328,6 +329,7 @@ int main(int argc, char **argv) {
     }
 
     if ((argc - optind) <= 0) {
+        cout << usage << endl;
         cout << "No .fids specified" << endl;
         return EXIT_FAILURE;
     }
