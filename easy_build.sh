@@ -28,8 +28,8 @@ tar --extract --file=${EIGEN_DIR}.tar.gz --strip-components=1 --directory=${EIGE
 cd $WD
 # Now build Agilent Tools
 BLD_DIR="Build"
-BLD_OPTS="-DCMAKE_BUILD_TYPE=Release -DEIGEN3_INCLUDE_DIR=${WD}/${EXT_DIR}/${EIGEN_DIR}"
+BLD_OPTS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$WD -DEIGEN3_INCLUDE_DIR=${WD}/${EXT_DIR}/${EIGEN_DIR}"
 mkdir -p $BLD_DIR
 cd $BLD_DIR
 cmake $WD ${BLD_OPTS}
-make -j
+make -j install
