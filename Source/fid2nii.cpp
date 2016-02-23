@@ -202,7 +202,9 @@ MultiArray<complex<float>, 4> reconMGE(Agilent::FID &fid) {
 
 MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid);
 MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
-    const int nx = fid.procpar().realValue("np") / 2;
+    const float echo_fraction = fid.procpar().realValue("echo_fraction");
+    const int nx = fid.procpar().realValue("np") / (2 * echo_fraction);
+    const int e_start = (1 - echo_fraction) * nx;
     const int ny = fid.procpar().realValue("nv");
     const int nz = fid.procpar().realValue("nv2");
     const int nseg = fid.procpar().realValue("nseg");
@@ -225,8 +227,11 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
             for (int v = 0; v < nti; v++) {
                 for (int y = 0; y < (ny / nseg); y++) {
                     int yind = ny / 2 + pelist[yseg + y];
-                    for (int x = 0; x < nx; x++) {
+                    for (int x = e_start; x < nx; x++) {
                         k[{x, yind, z, v}] = block.at(i++);
+                    }
+                    for (int x = 0; x < e_start; x++) {
+                        k[{x, yind, z, v}] = conj(k[{nx-x, yind, z, v}]);
                     }
                 }
             }
