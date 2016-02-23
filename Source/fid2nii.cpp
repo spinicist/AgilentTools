@@ -202,7 +202,12 @@ MultiArray<complex<float>, 4> reconMGE(Agilent::FID &fid) {
 
 MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid);
 MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
-    const float echo_fraction = fid.procpar().realValue("echo_fraction");
+    float echo_fraction = 1.0;
+    try {
+        echo_fraction = fid.procpar().realValue("echo_fraction");
+    } catch (exception &e) {
+    
+    }
     const int nx = fid.procpar().realValue("np") / (2 * echo_fraction);
     const int e_start = (1 - echo_fraction) * nx;
     const int ny = fid.procpar().realValue("nv");
@@ -216,6 +221,7 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
     if (verbose) {
         cout << "Reading mp3rage fid" << endl;
         cout << "Expecting " << nti << " inversion times" << endl;
+        cout << "Echo fraction: " << echo_fraction << endl;
     }
     for (int z = 0; z < nz; z++) {
         if (verbose) cout << "Reading block " << z << endl;
@@ -231,7 +237,7 @@ MultiArray<complex<float>, 4> reconMP2RAGE(Agilent::FID &fid) {
                         k[{x, yind, z, v}] = block.at(i++);
                     }
                     for (int x = 0; x < e_start; x++) {
-                        k[{x, yind, z, v}] = conj(k[{nx-x, yind, z, v}]);
+                        k[{x, yind, z, v}] = conj(k[{nx-x-1, yind, z, v}]);
                     }
                 }
             }
